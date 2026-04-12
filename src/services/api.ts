@@ -88,11 +88,11 @@ class ApiService {
 
   // --- Auth Endpoints ---
 
-  async login(provider: 'google', code: string): Promise<AuthResponse> {
+  async login(provider: 'google', code: string, redirectUri?: string): Promise<AuthResponse> {
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ provider, code }),
+      body: JSON.stringify({ provider, code, redirectUri }),
     });
     const json = await response.json();
     if (!response.ok || !json.success) {

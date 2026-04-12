@@ -121,7 +121,7 @@ export function ThresholdSlider({ thresholds, onUpdate }: ThresholdSliderProps) 
         <Slider
           style={styles.slider}
           minimumValue={10}
-          maximumValue={95}
+          maximumValue={100}
           step={1}
           value={turnOffAbove}
           onValueChange={handleTurnOffChange}
