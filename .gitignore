@@ -38,6 +38,7 @@ yarn-error.*
 .env.staging
 .env.test
 !.env.example
+/.env
 
 # typescript
 *.tsbuildinfo

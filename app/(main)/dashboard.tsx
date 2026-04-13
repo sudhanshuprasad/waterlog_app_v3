@@ -6,7 +6,9 @@ import {
   ScrollView,
   RefreshControl,
   Animated,
+  TouchableOpacity,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +20,7 @@ import { PumpControlSwitch } from '../../src/components/PumpControlSwitch';
 import { colors, gradients, typography, borderRadius, spacing, shadows } from '../../src/theme';
 
 export default function DashboardScreen() {
+  const router = useRouter();
   const { selectedDevice } = useDevices();
   const {
     waterLevel,
@@ -64,8 +67,9 @@ export default function DashboardScreen() {
               <Text style={styles.greeting}>{selectedDevice?.name || 'WaterLog'}</Text>
               <Text style={styles.subtitle}>{selectedDevice?.location || 'Dashboard'}</Text>
             </View>
-            <View style={styles.connectionStatus}>
-              <View
+            <View style={styles.headerRight}>
+              <View style={styles.connectionStatus}>
+                <View
                 style={[
                   styles.connectionDot,
                   {
@@ -83,6 +87,10 @@ export default function DashboardScreen() {
               >
                 {isConnected ? 'LIVE' : 'OFFLINE'}
               </Text>
+              </View>
+              <TouchableOpacity onPress={() => router.push('/register-device')} style={styles.addButton}>
+                <Ionicons name="add" size={24} color={colors.textPrimary} />
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -194,6 +202,14 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textSecondary,
     marginTop: 2,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  addButton: {
+    padding: 4,
   },
   connectionStatus: {
     flexDirection: 'row',

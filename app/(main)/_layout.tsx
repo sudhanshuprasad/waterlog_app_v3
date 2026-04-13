@@ -45,6 +45,12 @@ export default function MainLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="register-device"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }

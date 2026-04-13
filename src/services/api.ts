@@ -125,6 +125,13 @@ class ApiService {
     return this.request<{ items: Device[]; total: number }>('/devices');
   }
 
+  async registerDevice(data: { id: string; name: string; location?: string }): Promise<Device> {
+    return this.request<Device>('/devices/register', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
   async sendPumpCommand(deviceId: string, action: 'on' | 'off'): Promise<void> {
     await this.request(`/devices/${deviceId}/control/pump`, {
       method: 'POST',
