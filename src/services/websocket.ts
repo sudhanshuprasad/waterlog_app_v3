@@ -54,6 +54,15 @@ class WebSocketService {
       console.log('[WebSocketService] Disconnected from server. Reason:', reason);
       this.isConnected = false;
       this.emit('connection_status', { connected: false });
+      
+      // If the server forcefully disconnects the socket, we must reconnect manually.
+      // Other reasons like 'io client disconnect' or 'ping timeout' will auto-reconnect or are intentional.
+      if (reason === 'io server disconnect') {
+         setTimeout(() => {
+            console.log('[WebSocketService] Reconnecting after server disconnect...');
+            this.socket?.connect();
+         }, 1000);
+      }
     });
 
     this.socket.on('connect_error', (error) => {
@@ -74,7 +83,15 @@ class WebSocketService {
     });
 
     this.socket.on('sensor_update', (payload: any) => {
-      // console.log('[WebSocketService] RECEIVED sensor_update:', JSON.stringify(payload, null, 2));
+      console.log('[WebSocketService] RECEIVED sensor_update:', JSON.stringify(payload, null, 2));
+      
+      // Filter out events that do not belong to the currently selected device
+      const isMatch = payload.slno === this.currentDeviceToken || payload.deviceId === this.currentDeviceToken;
+      if (!isMatch && this.currentDeviceToken !== null) {
+        // console.log(`[WebSocketService] Ignoring update for ${payload.slno || payload.deviceId} as selected device is ${this.currentDeviceToken}`);
+        return;
+      }
+
       const reading = payload?.data?.reading;
       if (!reading) {
         console.warn('[WebSocketService] No reading in sensor_update payload');
@@ -112,8 +129,17 @@ class WebSocketService {
     this.emit('connection_status', { connected: false });
   }
 
+  leaveDevice(deviceToken: string) {
+    if (this.isConnected && this.socket) {
+      this.socket.emit('unsubscribe:device', { deviceToken });
+    }
+  }
+
   joinDevice(deviceToken: string) {
     // console.log(`[WebSocketService] Intent to join device room by token: ${deviceToken}`);
+    if (this.currentDeviceToken && this.currentDeviceToken !== deviceToken) {
+      this.leaveDevice(this.currentDeviceToken);
+    }
     this.currentDeviceToken = deviceToken;
     if (this.isConnected && this.socket) {
       // console.log(`[WebSocketService] Emitting join_device with deviceToken=${deviceToken}`);

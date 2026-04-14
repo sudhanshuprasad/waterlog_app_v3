@@ -17,7 +17,7 @@ export interface DeviceReading {
 
 export interface Device {
   id: string;
-  deviceToken: string;
+  slno: string;
   name: string;
   location: string;
   status: string;

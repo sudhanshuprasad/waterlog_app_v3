@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, Animated, TouchableOpacity, Alert, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, typography, borderRadius, spacing, shadows } from '../theme';
 
@@ -12,10 +12,14 @@ interface PumpStatusCardProps {
 }
 
 export function PumpStatusCard({ isRunning, mode, runtime, autoMode = false, onToggle }: PumpStatusCardProps) {
+  const [switchIsOn, setSwitchIsOn] = React.useState(isRunning);
+
+  // Note: switchIsOn intentionally decoupled from isRunning updates to exclusively track HTTP commands
+
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(isRunning ? 1 : 0)).current;
-  const bgAnim = useRef(new Animated.Value(isRunning ? 1 : 0)).current;
+  const slideAnim = useRef(new Animated.Value(switchIsOn ? 1 : 0)).current;
+  const bgAnim = useRef(new Animated.Value(switchIsOn ? 1 : 0)).current;
 
   useEffect(() => {
     if (isRunning) {
@@ -54,34 +58,51 @@ export function PumpStatusCard({ isRunning, mode, runtime, autoMode = false, onT
       pulseAnim.setValue(1);
       glowAnim.setValue(0);
     }
+  }, [isRunning, pulseAnim, glowAnim]);
 
+  // Handle independent toggle switch animations
+  useEffect(() => {
     Animated.parallel([
       Animated.spring(slideAnim, {
-        toValue: isRunning ? 1 : 0,
+        toValue: switchIsOn ? 1 : 0,
         damping: 15,
         stiffness: 120,
         useNativeDriver: true,
       }),
       Animated.timing(bgAnim, {
-        toValue: isRunning ? 1 : 0,
+        toValue: switchIsOn ? 1 : 0,
         duration: 300,
         useNativeDriver: false,
       }),
     ]).start();
-  }, [isRunning]);
+  }, [switchIsOn, slideAnim, bgAnim]);
 
   const handlePress = () => {
     if (!onToggle) return;
     if (autoMode) {
-      Alert.alert(
-        'Auto Mode Active',
-        'Disable auto mode from Settings to manually control the pump.',
-        [{ text: 'OK' }]
-      );
+      if (Platform.OS === 'web') {
+        window.alert('Disable auto mode from Settings to manually control the pump.');
+      } else {
+        Alert.alert(
+          'Auto Mode Active',
+          'Disable auto mode from Settings to manually control the pump.',
+          [{ text: 'OK' }]
+        );
+      }
       return;
     }
 
-    const action = isRunning ? 'stop' : 'start';
+    const action = switchIsOn ? 'stop' : 'start';
+
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm(`Are you sure you want to ${action} the water pump?`);
+      if (confirmed) {
+        setSwitchIsOn(!switchIsOn);
+        onToggle(action);
+      }
+      return;
+    }
+
     Alert.alert(
       `${action === 'start' ? 'Start' : 'Stop'} Pump?`,
       `Are you sure you want to ${action} the water pump?`,
@@ -90,7 +111,10 @@ export function PumpStatusCard({ isRunning, mode, runtime, autoMode = false, onT
         {
           text: action === 'start' ? 'Start' : 'Stop',
           style: action === 'stop' ? 'destructive' : 'default',
-          onPress: () => onToggle(action),
+          onPress: () => {
+             setSwitchIsOn(!switchIsOn);
+             onToggle(action);
+          },
         },
       ]
     );
@@ -187,12 +211,12 @@ export function PumpStatusCard({ isRunning, mode, runtime, autoMode = false, onT
                     styles.switchThumb,
                     {
                       transform: [{ translateX }],
-                      backgroundColor: isRunning ? colors.success : colors.textMuted,
+                      backgroundColor: switchIsOn ? colors.success : colors.textMuted,
                     },
                   ]}
                 >
                   <Ionicons
-                    name={isRunning ? 'checkmark' : 'close'}
+                    name={switchIsOn ? 'checkmark' : 'close'}
                     size={16}
                     color={colors.white}
                   />

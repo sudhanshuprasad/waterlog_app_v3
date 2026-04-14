@@ -67,7 +67,7 @@ export function useWebSocket() {
   // Set device whenever it changes — join by SL No (deviceToken)
   useEffect(() => {
     if (selectedDevice) {
-      wsService.joinDevice(selectedDevice.deviceToken);
+      wsService.joinDevice(selectedDevice.slno);
       fetchCurrentState();
     } else {
       setWaterLevel(null);
@@ -75,6 +75,13 @@ export function useWebSocket() {
       setSettings(null);
     }
   }, [selectedDevice?.id, fetchCurrentState]);
+
+  // Ensure prompt data reload when socket reconnects after an outage
+  useEffect(() => {
+    if (isConnected && selectedDevice) {
+      fetchCurrentState();
+    }
+  }, [isConnected]);
 
   const sendPumpCommand = useCallback(async (action: 'start' | 'stop') => {
     console.log('[useWebSocket] sendPumpCommand called, action:', action, 'selectedDevice:', selectedDevice?.id);

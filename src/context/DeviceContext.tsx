@@ -52,6 +52,7 @@ export function DeviceProvider({ children }: { children: React.ReactNode }) {
       if (devices.length === 0) {
          const mockDevice: Device = {
            id: 'mock-device-1',
+           slno: 'mock-slno',
            name: 'Mock Home Tank',
            location: 'Roof',
            status: 'active',

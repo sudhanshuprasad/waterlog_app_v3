@@ -19,7 +19,7 @@ import { colors, typography, borderRadius, spacing, shadows } from '../../src/th
 
 export default function EditDeviceScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ deviceId: string; deviceToken: string; deviceName: string; deviceLocation: string }>();
+  const params = useLocalSearchParams<{ deviceId: string; slno: string; deviceName: string; deviceLocation: string }>();
   const { refreshDevices } = useDevices();
 
   const [name, setName] = useState(params.deviceName || '');
@@ -123,9 +123,11 @@ export default function EditDeviceScreen() {
         {/* Device Token / SL No (read-only) */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Device SL No</Text>
-          <View style={[styles.input, styles.inputDisabled]}>
-            <Text style={styles.inputDisabledText}>{params.deviceToken}</Text>
-          </View>
+          <TextInput
+            style={[styles.input, styles.inputDisabled, { color: colors.textMuted }]}
+            value={params.slno}
+            editable={false}
+          />
         </View>
 
         {/* Database ID (read-only, hidden for cleaner UI but available if needed) */}
