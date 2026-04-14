@@ -62,7 +62,7 @@ class WebSocketService {
 
     // Server confirms subscription
     this.socket.on('subscribed', (data: any) => {
-      console.log('[WebSocketService] SUBSCRIBED confirmed by server:', JSON.stringify(data));
+      // console.log('[WebSocketService] SUBSCRIBED confirmed by server:', JSON.stringify(data));
     });
 
     this.socket.on('subscription:error', (data: any) => {
@@ -70,11 +70,11 @@ class WebSocketService {
     });
 
     this.socket.on('connected', (data: any) => {
-      console.log('[WebSocketService] SERVER connected event:', JSON.stringify(data));
+      // console.log('[WebSocketService] SERVER connected event:', JSON.stringify(data));
     });
 
     this.socket.on('sensor_update', (payload: any) => {
-      console.log('[WebSocketService] RECEIVED sensor_update:', JSON.stringify(payload, null, 2));
+      // console.log('[WebSocketService] RECEIVED sensor_update:', JSON.stringify(payload, null, 2));
       const reading = payload?.data?.reading;
       if (!reading) {
         console.warn('[WebSocketService] No reading in sensor_update payload');
@@ -113,10 +113,10 @@ class WebSocketService {
   }
 
   joinDevice(deviceToken: string) {
-    console.log(`[WebSocketService] Intent to join device room by token: ${deviceToken}`);
+    // console.log(`[WebSocketService] Intent to join device room by token: ${deviceToken}`);
     this.currentDeviceToken = deviceToken;
     if (this.isConnected && this.socket) {
-      console.log(`[WebSocketService] Emitting join_device with deviceToken=${deviceToken}`);
+      // console.log(`[WebSocketService] Emitting join_device with deviceToken=${deviceToken}`);
       this.socket.emit('join_device', { deviceToken });
     } else {
       console.log(`[WebSocketService] Cannot emit join_device yet, socket connected=${this.isConnected}`);

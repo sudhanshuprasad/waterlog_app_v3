@@ -17,7 +17,6 @@ import { useWebSocket } from '../../src/hooks/useWebSocket';
 import { useDevices } from '../../src/context/DeviceContext';
 import { WaterLevelGauge } from '../../src/components/WaterLevelGauge';
 import { PumpStatusCard } from '../../src/components/PumpStatusCard';
-import { PumpControlSwitch } from '../../src/components/PumpControlSwitch';
 import { colors, gradients, typography, borderRadius, spacing, shadows } from '../../src/theme';
 
 export default function DashboardScreen() {
@@ -134,16 +133,11 @@ export default function DashboardScreen() {
               </View>
             </View>
 
-            {/* Pump Status */}
+            {/* Pump Control & Status */}
             <PumpStatusCard
               isRunning={pumpStatus?.isRunning ?? false}
               mode={pumpStatus?.mode ?? 'manual'}
               runtime={pumpStatus?.runtime}
-            />
-
-            {/* Pump Control */}
-            <PumpControlSwitch
-              isRunning={pumpStatus?.isRunning ?? false}
               autoMode={settings?.autoMode ?? false}
               onToggle={sendPumpCommand}
             />
