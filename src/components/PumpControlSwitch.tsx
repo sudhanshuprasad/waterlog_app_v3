@@ -41,7 +41,9 @@ export function PumpControlSwitch({
   }, [isRunning]);
 
   const handlePress = () => {
+    console.log('[PumpControlSwitch] handlePress called, isRunning:', isRunning, 'autoMode:', autoMode);
     if (autoMode) {
+      console.log('[PumpControlSwitch] Blocked by autoMode');
       Alert.alert(
         'Auto Mode Active',
         'Disable auto mode from Settings to manually control the pump.',
@@ -51,6 +53,7 @@ export function PumpControlSwitch({
     }
 
     const action = isRunning ? 'stop' : 'start';
+    console.log('[PumpControlSwitch] Will prompt for action:', action);
     Alert.alert(
       `${action === 'start' ? 'Start' : 'Stop'} Pump?`,
       `Are you sure you want to ${action} the water pump?`,
@@ -59,7 +62,10 @@ export function PumpControlSwitch({
         {
           text: action === 'start' ? 'Start' : 'Stop',
           style: action === 'stop' ? 'destructive' : 'default',
-          onPress: () => onToggle(action),
+          onPress: () => {
+            console.log('[PumpControlSwitch] User confirmed, calling onToggle with:', action);
+            onToggle(action);
+          },
         },
       ]
     );

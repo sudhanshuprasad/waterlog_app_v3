@@ -51,6 +51,12 @@ export default function MainLayout() {
           href: null,
         }}
       />
+      <Tabs.Screen
+        name="edit-device"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { Alert } from 'react-native';
 import { wsService } from '../services/websocket';
 import { useDevices } from '../context/DeviceContext';
 import {
@@ -61,44 +62,69 @@ export function useWebSocket() {
   }, [selectedDevice?.id]);
 
   const sendPumpCommand = useCallback(async (action: 'start' | 'stop') => {
-    if (!selectedDevice) return;
-    try {
-      await wsService.sendPumpCommandREST(selectedDevice.id, action === 'start' ? 'on' : 'off');
-      // Optimistic update
-      setPumpStatus(prev => prev ? { ...prev, isRunning: action === 'start' } : { isRunning: action === 'start', mode: 'manual' });
-    } catch (e) {
-      console.error("Pump command failed", e);
+    console.log('[useWebSocket] sendPumpCommand called, action:', action, 'selectedDevice:', selectedDevice?.id);
+    if (!selectedDevice) {
+      console.warn('[useWebSocket] No selectedDevice, aborting');
+      return;
     }
-  }, [selectedDevice]);
+    const newIsRunning = action === 'start';
+    // Save previous state for rollback
+    const prevPumpStatus = pumpStatus;
+    // Optimistic update — only touches isRunning, never autoMode
+    setPumpStatus(prev => ({
+      isRunning: newIsRunning,
+      mode: prev?.mode ?? 'manual',
+      lastStarted: newIsRunning ? new Date() : prev?.lastStarted,
+      lastStopped: !newIsRunning ? new Date() : prev?.lastStopped,
+      runtime: prev?.runtime ?? 0,
+    }));
+    try {
+      console.log('[useWebSocket] Calling wsService.sendPumpCommandREST, deviceId:', selectedDevice.id, 'action:', newIsRunning ? 'on' : 'off');
+      await wsService.sendPumpCommandREST(selectedDevice.id, newIsRunning ? 'on' : 'off');
+      console.log('[useWebSocket] Pump command sent successfully');
+    } catch (e: any) {
+      console.error("[useWebSocket] Pump command failed, reverting", e);
+      setPumpStatus(prevPumpStatus);
+      Alert.alert('Pump Command Failed', e?.message || 'Could not send pump command. Please try again.');
+    }
+  }, [selectedDevice, pumpStatus]);
 
   const updateThresholds = useCallback(async (thresholds: PumpThresholds) => {
     if (!selectedDevice) return;
+    const prevSettings = settings;
+    setSettings(prev => prev ? { ...prev, thresholds } : { thresholds, autoMode: false });
     try {
       await wsService.updateSettingsREST(selectedDevice.id, { thresholds });
-      setSettings(prev => prev ? { ...prev, thresholds } : null);
-    } catch (e) {
-      console.error("Update thresholds failed", e);
+    } catch (e: any) {
+      console.error("Update thresholds failed, reverting", e);
+      setSettings(prevSettings);
+      Alert.alert('Update Failed', e?.message || 'Could not update thresholds. Please try again.');
     }
-  }, [selectedDevice]);
+  }, [selectedDevice, settings]);
 
   const updateWiFi = useCallback(async (config: WiFiConfig) => {
     if (!selectedDevice) return;
     try {
       await wsService.updateSettingsREST(selectedDevice.id, { wifi: config });
-    } catch (e) {
+    } catch (e: any) {
       console.error("Update wifi failed", e);
+      Alert.alert('WiFi Update Failed', e?.message || 'Could not update WiFi settings. Please try again.');
     }
   }, [selectedDevice]);
 
   const toggleAutoMode = useCallback(async (enabled: boolean) => {
     if (!selectedDevice) return;
+    const prevSettings = settings;
+    // Optimistic update — only touches autoMode, never pump isRunning
+    setSettings(prev => prev ? { ...prev, autoMode: enabled } : { autoMode: enabled, thresholds: { turnOnBelow: 20, turnOffAbove: 80 } });
     try {
       await wsService.updateSettingsREST(selectedDevice.id, { autoMode: enabled });
-      setSettings(prev => prev ? { ...prev, autoMode: enabled } : null);
-    } catch (e) {
-       console.error("Toggle auto mode failed", e);
+    } catch (e: any) {
+      console.error("Toggle auto mode failed, reverting", e);
+      setSettings(prevSettings);
+      Alert.alert('Auto Mode Failed', e?.message || 'Could not toggle auto mode. Please try again.');
     }
-  }, [selectedDevice]);
+  }, [selectedDevice, settings]);
 
   const refreshStatus = useCallback(async () => {
     await refreshDevices();

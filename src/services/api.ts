@@ -121,8 +121,8 @@ class ApiService {
 
   // --- Device Management Endpoints ---
 
-  async getDevices(): Promise<{ items: Device[]; total: number }> {
-    return this.request<{ items: Device[]; total: number }>('/devices');
+  async getDevices(): Promise<{ devices: Device[]; total: number }> {
+    return this.request<{ devices: Device[]; total: number }>('/devices');
   }
 
   async registerDevice(data: { id: string; name: string; location?: string }): Promise<Device> {
@@ -133,10 +133,18 @@ class ApiService {
   }
 
   async sendPumpCommand(deviceId: string, action: 'on' | 'off'): Promise<void> {
-    await this.request(`/devices/${deviceId}/control/pump`, {
-      method: 'POST',
-      body: JSON.stringify({ action }),
-    });
+    console.log('[ApiService] sendPumpCommand called, deviceId:', deviceId, 'action:', action);
+    console.log('[ApiService] URL:', `/devices/${deviceId}/control/pump`);
+    try {
+      const result = await this.request(`/devices/${deviceId}/control/pump`, {
+        method: 'POST',
+        body: JSON.stringify({ action }),
+      });
+      console.log('[ApiService] sendPumpCommand response:', result);
+    } catch (error) {
+      console.error('[ApiService] sendPumpCommand error:', error);
+      throw error;
+    }
   }
 
   // NOTE: Assuming these PUT endpoints exist on the backend to match the UI requirements,
@@ -146,6 +154,19 @@ class ApiService {
       method: 'PUT',
       body: JSON.stringify(data),
     });
+  }
+
+  async deleteDevice(deviceId: string): Promise<void> {
+    console.log('[ApiService] Calling DELETE /devices/', deviceId);
+    try {
+      await this.request(`/devices/${deviceId}`, {
+        method: 'DELETE',
+      });
+      console.log('[ApiService] DELETE successful for:', deviceId);
+    } catch (e) {
+      console.error('[ApiService] DELETE failed:', e);
+      throw e;
+    }
   }
 }
 

@@ -7,6 +7,7 @@ import {
   RefreshControl,
   Animated,
   TouchableOpacity,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -21,7 +22,8 @@ import { colors, gradients, typography, borderRadius, spacing, shadows } from '.
 
 export default function DashboardScreen() {
   const router = useRouter();
-  const { selectedDevice } = useDevices();
+  const { devices, selectedDevice, selectDevice, refreshDevices } = useDevices();
+  const [deviceSelectorVisible, setDeviceSelectorVisible] = React.useState(false);
   const {
     waterLevel,
     pumpStatus,
@@ -44,8 +46,11 @@ export default function DashboardScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    refreshStatus();
-    setTimeout(() => setRefreshing(false), 1500);
+    await Promise.all([
+      refreshStatus(),
+      refreshDevices(),
+    ]);
+    setTimeout(() => setRefreshing(false), 500);
   };
 
   const formatTime = (date?: Date) => {
@@ -63,10 +68,18 @@ export default function DashboardScreen() {
         <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
           {/* Header */}
           <View style={styles.header}>
-            <View>
-              <Text style={styles.greeting}>{selectedDevice?.name || 'WaterLog'}</Text>
-              <Text style={styles.subtitle}>{selectedDevice?.location || 'Dashboard'}</Text>
-            </View>
+            <TouchableOpacity onPress={() => {
+              setDeviceSelectorVisible(true);
+              refreshDevices();
+            }} style={styles.deviceSelectorButton}>
+              <View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={styles.greeting}>{selectedDevice?.name || 'WaterLog'}</Text>
+                  <Ionicons name="chevron-down" size={16} color={colors.textPrimary} />
+                </View>
+                <Text style={styles.subtitle}>{selectedDevice?.location || 'Dashboard'}</Text>
+              </View>
+            </TouchableOpacity>
             <View style={styles.headerRight}>
               <View style={styles.connectionStatus}>
                 <View
@@ -172,6 +185,74 @@ export default function DashboardScreen() {
             <View style={{ height: spacing['3xl'] }} />
           </ScrollView>
         </Animated.View>
+
+        {/* Device Selector Modal */}
+        <Modal visible={deviceSelectorVisible} transparent animationType="slide">
+          <TouchableOpacity 
+            style={styles.modalOverlay} 
+            activeOpacity={1} 
+            onPress={() => setDeviceSelectorVisible(false)}
+          >
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Select Device</Text>
+                <TouchableOpacity onPress={() => setDeviceSelectorVisible(false)}>
+                  <Ionicons name="close" size={24} color={colors.textPrimary} />
+                </TouchableOpacity>
+              </View>
+              <ScrollView>
+                {devices.map(device => (
+                  <TouchableOpacity 
+                    key={device.id} 
+                    style={[
+                      styles.deviceOption, 
+                      selectedDevice?.id === device.id && styles.deviceOptionSelected
+                    ]}
+                    onPress={() => {
+                      selectDevice(device.id);
+                      setDeviceSelectorVisible(false);
+                    }}
+                  >
+                    <View style={styles.deviceOptionInfo}>
+                      <Text style={[
+                        styles.deviceOptionName,
+                        selectedDevice?.id === device.id && styles.deviceOptionNameSelected
+                      ]}>{device.name}</Text>
+                      {device.location ? (
+                        <Text style={styles.deviceOptionLocation}>{device.location}</Text>
+                      ) : null}
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      {selectedDevice?.id === device.id && (
+                        <Ionicons name="checkmark-circle" size={20} color={colors.primary} />
+                      )}
+                      <TouchableOpacity
+                        onPress={(e) => {
+                          setDeviceSelectorVisible(false);
+                          router.push({
+                            pathname: '/edit-device',
+                            params: {
+                              deviceId: device.id,
+                              deviceName: device.name,
+                              deviceLocation: device.location || ''
+                            }
+                          });
+                        }}
+                        style={{ padding: 4 }}
+                      >
+                        <Ionicons name="pencil" size={18} color={colors.textSecondary} />
+                      </TouchableOpacity>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+                {devices.length === 0 && (
+                  <Text style={styles.noDevicesText}>No devices found.</Text>
+                )}
+              </ScrollView>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
       </SafeAreaView>
     </LinearGradient>
   );
@@ -202,6 +283,9 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textSecondary,
     marginTop: 2,
+  },
+  deviceSelectorButton: {
+    flex: 1,
   },
   headerRight: {
     flexDirection: 'row',
@@ -280,5 +364,64 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textMuted,
     fontSize: 10,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.backgroundLight,
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    padding: spacing.lg,
+    maxHeight: '70%',
+    paddingBottom: spacing['4xl'],
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  modalTitle: {
+    ...typography.h3,
+    color: colors.textPrimary,
+  },
+  deviceOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.surfaceBorder,
+    marginBottom: spacing.sm,
+  },
+  deviceOptionSelected: {
+    backgroundColor: colors.primary + '10',
+    borderRadius: borderRadius.md,
+    borderBottomWidth: 0,
+  },
+  deviceOptionInfo: {
+    flex: 1,
+  },
+  deviceOptionName: {
+    ...typography.bodyBold,
+    color: colors.textPrimary,
+  },
+  deviceOptionNameSelected: {
+    color: colors.primary,
+  },
+  deviceOptionLocation: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  noDevicesText: {
+    ...typography.body,
+    color: colors.textMuted,
+    textAlign: 'center',
+    padding: spacing.xl,
   },
 });

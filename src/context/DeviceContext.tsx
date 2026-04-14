@@ -31,15 +31,20 @@ export function DeviceProvider({ children }: { children: React.ReactNode }) {
     try {
       setIsLoading(true);
       const data = await apiService.getDevices();
-      setDevices(data.items);
+      setDevices(data.devices);
       
       // Auto-select first device if none selected
-      if (data.items.length > 0 && !selectedDevice) {
-        setSelectedDevice(data.items[0]);
+      if (data.devices.length > 0 && !selectedDevice) {
+        setSelectedDevice(data.devices[0]);
       } else if (selectedDevice) {
         // Update selected device info
-        const updated = data.items.find(d => d.id === selectedDevice.id);
-        if (updated) setSelectedDevice(updated);
+        const updated = data.devices.find(d => d.id === selectedDevice.id);
+        if (updated) {
+          setSelectedDevice(updated);
+        } else {
+          // Device was removed, fallback to another device or null
+          setSelectedDevice(data.devices.length > 0 ? data.devices[0] : null);
+        }
       }
     } catch (error) {
       console.error('Failed to fetch devices:', error);

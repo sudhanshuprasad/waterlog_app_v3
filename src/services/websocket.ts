@@ -107,7 +107,10 @@ class WebSocketService {
   // Actual pump control should go through the REST API directly since the spec
   // dictates POST /devices/:id/control/pump
   async sendPumpCommandREST(deviceId: string, action: 'on' | 'off') {
-    return apiService.sendPumpCommand(deviceId, action);
+    console.log('[WebSocketService] sendPumpCommandREST called, deviceId:', deviceId, 'action:', action);
+    const result = await apiService.sendPumpCommand(deviceId, action);
+    console.log('[WebSocketService] sendPumpCommandREST result:', result);
+    return result;
   }
 
   async updateSettingsREST(deviceId: string, settings: any) {
