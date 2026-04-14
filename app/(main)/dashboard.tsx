@@ -142,36 +142,30 @@ export default function DashboardScreen() {
               onToggle={sendPumpCommand}
             />
 
-            {/* Quick stats */}
+            {/* Quick stats / Hardware Metrics */}
             <View style={styles.statsRow}>
               <View style={[styles.statCard, shadows.card]}>
-                <Ionicons name="speedometer-outline" size={20} color={colors.accent} />
+                <Ionicons name="flash-outline" size={20} color={colors.warning} />
                 <Text style={styles.statValue}>
-                  {waterLevel?.level?.toFixed(1) ?? '—'}%
+                  {waterLevel?.voltage ?? '—'} <Text style={{ fontSize: 12 }}>V</Text>
                 </Text>
-                <Text style={styles.statLabel}>Current Level</Text>
+                <Text style={styles.statLabel}>Voltage</Text>
               </View>
+              
               <View style={[styles.statCard, shadows.card]}>
-                <Ionicons
-                  name="flash-outline"
-                  size={20}
-                  color={pumpStatus?.isRunning ? colors.success : colors.textMuted}
-                />
+                <Ionicons name="stats-chart-outline" size={20} color={colors.danger} />
                 <Text style={styles.statValue}>
-                  {pumpStatus?.isRunning ? 'Active' : 'Idle'}
+                  {waterLevel?.power ?? '—'} <Text style={{ fontSize: 12 }}>W</Text>
                 </Text>
-                <Text style={styles.statLabel}>Pump State</Text>
+                <Text style={styles.statLabel}>Power</Text>
               </View>
+              
               <View style={[styles.statCard, shadows.card]}>
-                <Ionicons
-                  name="git-compare-outline"
-                  size={20}
-                  color={settings?.autoMode ? colors.accent : colors.textMuted}
-                />
+                <Ionicons name="leaf-outline" size={20} color={colors.success} />
                 <Text style={styles.statValue}>
-                  {settings?.autoMode ? 'Auto' : 'Manual'}
+                  {waterLevel?.energy ?? '—'} <Text style={{ fontSize: 12 }}>kWh</Text>
                 </Text>
-                <Text style={styles.statLabel}>Mode</Text>
+                <Text style={styles.statLabel}>Energy</Text>
               </View>
             </View>
 

@@ -47,6 +47,9 @@ export interface WaterLevelData {
   timestamp: Date;
   unit: 'percent' | 'cm' | 'liters';
   rawValue?: number;
+  voltage?: number;
+  power?: number;
+  energy?: number;
 }
 
 export interface PumpStatus {

@@ -102,6 +102,9 @@ class WebSocketService {
         level: reading.waterLevel,
         timestamp: new Date(payload.timestamp),
         unit: 'percent',
+        voltage: reading.voltage ?? 230,
+        power: reading.power ?? 1200,
+        energy: reading.energy ?? 14.5,
       });
       
       this.emit('pump_status', {

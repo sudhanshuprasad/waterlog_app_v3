@@ -14,7 +14,10 @@ interface PumpStatusCardProps {
 export function PumpStatusCard({ isRunning, mode, runtime, autoMode = false, onToggle }: PumpStatusCardProps) {
   const [switchIsOn, setSwitchIsOn] = React.useState(isRunning);
 
-  // Note: switchIsOn intentionally decoupled from isRunning updates to exclusively track HTTP commands
+  // Sync the switch visually when the websocket/parent prop updates, without triggering an HTTP call
+  useEffect(() => {
+    setSwitchIsOn(isRunning);
+  }, [isRunning]);
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const glowAnim = useRef(new Animated.Value(0)).current;
@@ -155,9 +158,15 @@ export function PumpStatusCard({ isRunning, mode, runtime, autoMode = false, onT
           <Ionicons name="water" size={18} color={colors.primary} />
           <Text style={styles.title}>Pump Control</Text>
         </View>
-        <View style={[styles.modeBadge, { backgroundColor: autoMode ? colors.warningBg : colors.textMuted + '15' }]}>
-          <Text style={[styles.modeText, { color: autoMode ? colors.warning : colors.textMuted }]}>
-            {autoMode ? 'AUTO LOCKED' : 'MANUAL'}
+        <View style={[styles.modeBadge, { backgroundColor: autoMode ? colors.accent + '20' : colors.textMuted + '15' }]}>
+          <View
+            style={[
+              styles.modeIndicator,
+              { backgroundColor: autoMode ? colors.accent : colors.textMuted },
+            ]}
+          />
+          <Text style={[styles.modeText, { color: autoMode ? colors.accent : colors.textMuted }]}>
+            {autoMode ? 'AUTO: ACTIVE' : 'MANUAL'}
           </Text>
         </View>
       </View>
@@ -262,9 +271,17 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
   },
   modeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
+  },
+  modeIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 6,
   },
   modeText: {
     ...typography.label,
