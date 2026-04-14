@@ -27,7 +27,7 @@ class WebSocketService {
     }
 
     this.socket = io(SOCKET_URL, {
-      query: { token },
+      auth: { token },
       transports: ['websocket'],
       reconnection: true,
       reconnectionDelay: 1000,
@@ -48,17 +48,20 @@ class WebSocketService {
       this.emit('connection_status', { connected: false });
     });
 
-    this.socket.on('sensor_update', (data: DeviceReading) => {
-      // Map data structure if needed, or just emit directly
+    this.socket.on('sensor_update', (payload: any) => {
+      // The backend sends { deviceId, data: { device, reading: { waterLevel, pumpStatus } }, timestamp }
+      const reading = payload?.data?.reading;
+      if (!reading) return;
+
       this.emit('water_level', {
-        level: data.waterLevel,
-        timestamp: new Date(data.timestamp),
+        level: reading.waterLevel,
+        timestamp: new Date(payload.timestamp),
         unit: 'percent',
       });
       
       this.emit('pump_status', {
-        isRunning: data.pumpStatus === 'on',
-        mode: 'manual', // API doesn't specify mode in sensor_update, defaulting
+        isRunning: reading.pumpStatus === 'on',
+        mode: 'manual',
         lastStarted: undefined,
         runtime: 0,
       });

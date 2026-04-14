@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Alert } from 'react-native';
 import { wsService } from '../services/websocket';
+import { apiService } from '../services/api';
 import { useDevices } from '../context/DeviceContext';
 import {
   WaterLevelData,
@@ -40,26 +41,40 @@ export function useWebSocket() {
     };
   }, []);
 
+  const fetchCurrentState = useCallback(async () => {
+    if (!selectedDevice) return;
+    try {
+      const reading = await apiService.getLatestReading(selectedDevice.id);
+      if (reading && reading.waterLevel !== undefined) {
+        setWaterLevel({
+           level: reading.waterLevel,
+           timestamp: new Date(reading.timestamp),
+           unit: 'percent'
+        });
+        setPumpStatus(prev => ({
+           isRunning: reading.pumpStatus === 'on',
+           mode: prev?.mode || 'manual',
+           runtime: prev?.runtime || 0,
+           lastStarted: prev?.lastStarted,
+           lastStopped: prev?.lastStopped
+        }));
+      }
+    } catch (e) {
+      console.error('Failed to parse latest reading', e);
+    }
+  }, [selectedDevice]);
+
   // Set device id whenever it changes
   useEffect(() => {
     if (selectedDevice) {
       wsService.joinDevice(selectedDevice.id);
-      
-      // Seed data if any
-      if (selectedDevice.lastReading) {
-        setWaterLevel({
-           level: selectedDevice.lastReading.waterLevel,
-           timestamp: new Date(selectedDevice.lastReading.timestamp),
-           unit: 'percent'
-        });
-        setPumpStatus({
-           isRunning: selectedDevice.lastReading.pumpStatus === 'on',
-           mode: 'manual',
-           runtime: 0
-        });
-      }
+      fetchCurrentState();
+    } else {
+      setWaterLevel(null);
+      setPumpStatus(null);
+      setSettings(null);
     }
-  }, [selectedDevice?.id]);
+  }, [selectedDevice?.id, fetchCurrentState]);
 
   const sendPumpCommand = useCallback(async (action: 'start' | 'stop') => {
     console.log('[useWebSocket] sendPumpCommand called, action:', action, 'selectedDevice:', selectedDevice?.id);
@@ -127,8 +142,11 @@ export function useWebSocket() {
   }, [selectedDevice, settings]);
 
   const refreshStatus = useCallback(async () => {
-    await refreshDevices();
-  }, [refreshDevices]);
+    await Promise.all([
+      refreshDevices(),
+      fetchCurrentState()
+    ]);
+  }, [refreshDevices, fetchCurrentState]);
 
   return {
     waterLevel,

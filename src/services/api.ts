@@ -168,6 +168,18 @@ class ApiService {
       throw e;
     }
   }
+
+  async getLatestReading(deviceId: string): Promise<any> {
+    try {
+      const data = await this.request<any>(`/data/${deviceId}/latest`, {
+        method: 'GET',
+      });
+      return data;
+    } catch (e) {
+      console.error('[ApiService] Failed to get latest reading', e);
+      return null;
+    }
+  }
 }
 
 export const apiService = new ApiService();
