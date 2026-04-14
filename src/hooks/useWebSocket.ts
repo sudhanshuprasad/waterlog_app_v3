@@ -64,10 +64,10 @@ export function useWebSocket() {
     }
   }, [selectedDevice]);
 
-  // Set device id whenever it changes
+  // Set device whenever it changes — join by SL No (deviceToken)
   useEffect(() => {
     if (selectedDevice) {
-      wsService.joinDevice(selectedDevice.id);
+      wsService.joinDevice(selectedDevice.deviceToken);
       fetchCurrentState();
     } else {
       setWaterLevel(null);

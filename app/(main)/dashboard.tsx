@@ -233,6 +233,7 @@ export default function DashboardScreen() {
                             pathname: '/edit-device',
                             params: {
                               deviceId: device.id,
+                              deviceToken: device.deviceToken,
                               deviceName: device.name,
                               deviceLocation: device.location || ''
                             }

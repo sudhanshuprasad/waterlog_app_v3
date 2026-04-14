@@ -10,19 +10,25 @@ class WebSocketService {
   private socket: Socket | null = null;
   private listeners: Map<string, Set<EventCallback>> = new Map();
   private isConnected: boolean = false;
-  private currentDeviceId: string | null = null;
+  private currentDeviceToken: string | null = null;
 
   async connect() {
-    if (this.socket) {
-      if (!this.socket.connected) {
-        this.socket.connect();
-      }
+    if (this.socket && this.socket.connected) {
+      console.log('[WebSocketService] Already connected!');
       return;
     }
 
+    if (this.socket && !this.socket.connected) {
+      console.log('[WebSocketService] Socket exists but disconnected, reconnecting...');
+      this.socket.connect();
+      return;
+    }
+
+    console.log('[WebSocketService] Initializing new connection...');
+    await apiService.initTokens();
     const token = apiService.getAccessToken();
     if (!token) {
-      console.warn('Cannot connect to socket without auth token');
+      console.warn('[WebSocketService] Cannot connect to socket without auth token. Token is null.');
       return;
     }
 
@@ -36,22 +42,44 @@ class WebSocketService {
     });
 
     this.socket.on('connect', () => {
+      console.log('[WebSocketService] Connected to socket server! ID:', this.socket?.id);
       this.isConnected = true;
       this.emit('connection_status', { connected: true });
-      if (this.currentDeviceId) {
-        this.joinDevice(this.currentDeviceId);
+      if (this.currentDeviceToken) {
+        this.joinDevice(this.currentDeviceToken);
       }
     });
 
-    this.socket.on('disconnect', () => {
+    this.socket.on('disconnect', (reason) => {
+      console.log('[WebSocketService] Disconnected from server. Reason:', reason);
       this.isConnected = false;
       this.emit('connection_status', { connected: false });
     });
 
+    this.socket.on('connect_error', (error) => {
+      console.error('[WebSocketService] Connection error:', error.message);
+    });
+
+    // Server confirms subscription
+    this.socket.on('subscribed', (data: any) => {
+      console.log('[WebSocketService] SUBSCRIBED confirmed by server:', JSON.stringify(data));
+    });
+
+    this.socket.on('subscription:error', (data: any) => {
+      console.error('[WebSocketService] SUBSCRIPTION ERROR from server:', JSON.stringify(data));
+    });
+
+    this.socket.on('connected', (data: any) => {
+      console.log('[WebSocketService] SERVER connected event:', JSON.stringify(data));
+    });
+
     this.socket.on('sensor_update', (payload: any) => {
-      // The backend sends { deviceId, data: { device, reading: { waterLevel, pumpStatus } }, timestamp }
+      console.log('[WebSocketService] RECEIVED sensor_update:', JSON.stringify(payload, null, 2));
       const reading = payload?.data?.reading;
-      if (!reading) return;
+      if (!reading) {
+        console.warn('[WebSocketService] No reading in sensor_update payload');
+        return;
+      }
 
       this.emit('water_level', {
         level: reading.waterLevel,
@@ -68,8 +96,7 @@ class WebSocketService {
     });
 
     this.socket.on('command_ack', (data: { commandId: string; status: string; message?: string }) => {
-      // Handle command acknowledgement
-      // In a real app we might show a toast or hide a loading spinner here
+      console.log('[WebSocketService] command_ack:', JSON.stringify(data));
       if (data.status === 'failed') {
         console.error('Command failed:', data.message);
       }
@@ -85,10 +112,14 @@ class WebSocketService {
     this.emit('connection_status', { connected: false });
   }
 
-  joinDevice(deviceId: string) {
-    this.currentDeviceId = deviceId;
+  joinDevice(deviceToken: string) {
+    console.log(`[WebSocketService] Intent to join device room by token: ${deviceToken}`);
+    this.currentDeviceToken = deviceToken;
     if (this.isConnected && this.socket) {
-      this.socket.emit('join_device', { deviceId });
+      console.log(`[WebSocketService] Emitting join_device with deviceToken=${deviceToken}`);
+      this.socket.emit('join_device', { deviceToken });
+    } else {
+      console.log(`[WebSocketService] Cannot emit join_device yet, socket connected=${this.isConnected}`);
     }
   }
 
