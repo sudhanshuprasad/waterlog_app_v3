@@ -46,3 +46,8 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# android
+*.keystore
+*.apk
+*.aab
