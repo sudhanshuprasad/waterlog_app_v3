@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { useAuthRequest, ResponseType, makeRedirectUri } from 'expo-auth-session';
 import { User } from '../types';
@@ -13,6 +14,24 @@ const discovery = {
   tokenEndpoint: 'https://oauth2.googleapis.com/token',
   revocationEndpoint: 'https://oauth2.googleapis.com/revoke',
 };
+
+// Google OAuth Client IDs from env variables
+const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '';
+const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '';
+const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '';
+
+// Select the correct client ID based on the current platform
+function getClientIdForPlatform(): string {
+  switch (Platform.OS) {
+    case 'android':
+      return GOOGLE_ANDROID_CLIENT_ID;
+    case 'ios':
+      return GOOGLE_IOS_CLIENT_ID;
+    case 'web':
+    default:
+      return GOOGLE_WEB_CLIENT_ID;
+  }
+}
 
 interface AuthContextType {
   user: User | null;
@@ -32,11 +51,11 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
-const GOOGLE_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '';
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const platformClientId = useMemo(() => getClientIdForPlatform(), []);
 
   // Configure Redirect URI
   const redirectUri = useMemo(() => {
@@ -48,7 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Configure Google Auth — raw useAuthRequest so we ONLY get the code, no auto-exchange
   const [request, response, promptAsync] = useAuthRequest(
     {
-      clientId: GOOGLE_CLIENT_ID,
+      clientId: platformClientId,
       responseType: ResponseType.Code,
       redirectUri,
       scopes: ['openid', 'profile', 'email'],
@@ -59,12 +78,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Log request state
   useEffect(() => {
-    console.log('[AUTH DEBUG] Google Client ID:', GOOGLE_CLIENT_ID);
+    console.log('[AUTH DEBUG] Platform:', Platform.OS);
+    console.log('[AUTH DEBUG] Selected Client ID:', platformClientId ? `${platformClientId.substring(0, 20)}...` : 'MISSING');
     console.log('[AUTH DEBUG] Request ready:', !!request);
     if (request) {
       console.log('[AUTH DEBUG] Request URL:', request.url);
     }
-  }, [request]);
+  }, [request, platformClientId]);
 
   // Check for existing session on mount
   useEffect(() => {
