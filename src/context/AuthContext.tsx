@@ -1,12 +1,13 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { Platform } from 'react-native';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { Platform, AppState, Linking } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { useAuthRequest, ResponseType, makeRedirectUri } from 'expo-auth-session';
 import { User } from '../types';
 import { apiService } from '../services/api';
 import { storage } from '../utils/storage';
 
-WebBrowser.maybeCompleteAuthSession();
+const sessionResult = WebBrowser.maybeCompleteAuthSession();
+console.log('[AUTH DEBUG] maybeCompleteAuthSession result:', JSON.stringify(sessionResult));
 
 // Google OAuth discovery document
 const discovery = {
@@ -39,6 +40,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
+  handleAuthCode: (code: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -47,6 +49,7 @@ const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   signInWithGoogle: async () => {},
   signOut: async () => {},
+  handleAuthCode: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -56,13 +59,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const platformClientId = useMemo(() => getClientIdForPlatform(), []);
+  const codeHandled = useRef(false);
+
+  // Manual deep link parser to catch the redirect in Dev Builds
+  const handleDeepLink = useCallback((url: string | null) => {
+    if (!url) return;
+    
+    // Check if it's our OAuth redirect
+    if (url.includes('/oauth2redirect')) {
+      console.log('[AUTH DEBUG] Manual link parser caught OAuth redirect!');
+      // Extract the authorization code from the URL parameters
+      const match = url.match(/[?&]code=([^&]+)/);
+      if (match && match[1]) {
+        const authCode = decodeURIComponent(match[1]);
+        console.log('[AUTH DEBUG] Found code in manual deep link! Length:', authCode.length);
+        
+        // Ensure we only process the code once
+        if (!codeHandled.current) {
+          codeHandled.current = true;
+          handleGoogleResponse(authCode);
+        } else {
+          console.log('[AUTH DEBUG] Code already handled, ignoring.');
+        }
+      }
+    }
+  }, []);
 
   // Configure Redirect URI
+  // Web  → http://localhost:8081
+  // Android/iOS → com.googleusercontent.apps.<CLIENT_ID_PREFIX>:/oauth2redirect
+  // Note: custom URI schemes are absolutely necessary when using native Client IDs
+  // (like the Android and iOS Google Client IDs) as Google strictly checks against them.
   const redirectUri = useMemo(() => {
-    const uri = makeRedirectUri({ preferLocalhost: true });
+    let uri: string;
+    if (Platform.OS === 'web') {
+      uri = makeRedirectUri({ preferLocalhost: true });
+    } else {
+      // Reverse the platform specific client ID to produce the custom URI scheme
+      const reversed = platformClientId.split('.').reverse().join('.');
+      uri = makeRedirectUri({
+        native: `${reversed}:/oauth2redirect`,
+      });
+    }
     console.log('[AUTH DEBUG] redirectUri:', uri);
     return uri;
-  }, []);
+  }, [platformClientId]);
 
   // Configure Google Auth — raw useAuthRequest so we ONLY get the code, no auto-exchange
   const [request, response, promptAsync] = useAuthRequest(
@@ -99,7 +140,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { code } = response.params;
       if (code) {
         console.log('[AUTH DEBUG] Got authorization code, length:', code.length);
-        handleGoogleResponse(code);
+        // Guard: only process the code once (auth codes are single-use)
+        if (!codeHandled.current) {
+          codeHandled.current = true;
+          handleGoogleResponse(code);
+        } else {
+          console.log('[AUTH DEBUG] Code already handled, skipping duplicate');
+        }
       } else {
         console.error('[AUTH DEBUG] Success response but no code in params!');
         setIsLoading(false);
@@ -152,15 +199,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Track app foreground/background to detect when OAuth redirect brings app back
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      console.log('[AUTH DEBUG] AppState changed to:', nextState);
+    });
+    const linkingSub = Linking.addEventListener('url', (event) => {
+      console.log('[AUTH DEBUG] Incoming deep link URL:', event.url);
+      handleDeepLink(event.url);
+    });
+    Linking.getInitialURL().then((url) => {
+      console.log('[AUTH DEBUG] Initial URL (cold start):', url);
+      handleDeepLink(url);
+    });
+    return () => {
+      subscription.remove();
+      linkingSub.remove();
+    };
+  }, []);
+
   const signInWithGoogle = useCallback(async () => {
     try {
       console.log('[AUTH DEBUG] signInWithGoogle called, request ready:', !!request);
+      console.log('[AUTH DEBUG] About to call promptAsync...');
       setIsLoading(true);
+      codeHandled.current = false; // Reset the guard so a new code can be processed
+
       const result = await promptAsync();
-      console.log('[AUTH DEBUG] promptAsync result type:', result?.type);
+      console.log('[AUTH DEBUG] promptAsync RETURNED — type:', result?.type);
       console.log('[AUTH DEBUG] promptAsync full result:', JSON.stringify(result, null, 2));
       if (result?.type !== 'success') {
-         setIsLoading(false);
+        setIsLoading(false);
       }
     } catch (error) {
       console.error('[AUTH DEBUG] Google sign-in error:', error);
@@ -186,6 +255,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated: !!user,
         signInWithGoogle,
         signOut,
+        handleAuthCode: handleGoogleResponse,
       }}
     >
       {children}

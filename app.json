@@ -6,7 +6,10 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
-    "scheme": "waterlog",
+    "scheme": [
+      "waterlog",
+      "com.googleusercontent.apps.812190688104-qpkfq896mjs6aunt62v3cne59mhq1qki"
+    ],
     "newArchEnabled": true,
     "plugins": [
       "expo-router",

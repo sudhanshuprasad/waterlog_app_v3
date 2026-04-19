@@ -59,7 +59,15 @@ class ApiService {
       }
     }
 
-    const json = await response.json() as ApiResponse<T>;
+    const rawText = await response.text();
+    let json: ApiResponse<T>;
+    try {
+      json = JSON.parse(rawText);
+    } catch (e) {
+      console.error(`[API DEBUG] Failed to parse JSON for ${endpoint}. Raw text was:`, rawText);
+      throw new Error(`Invalid server response from ${endpoint} (Status ${response.status})`);
+    }
+
     if (!response.ok || !json.success) {
       throw new Error(json.error?.message || 'API request failed');
     }
@@ -74,7 +82,14 @@ class ApiService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken: this.refreshToken }),
       });
-      const json = await response.json() as ApiResponse<{ accessToken: string }>;
+      const rawText = await response.text();
+      let json: ApiResponse<{ accessToken: string }>;
+      try {
+        json = JSON.parse(rawText) as ApiResponse<{ accessToken: string }>;
+      } catch (e) {
+        console.error('[API DEBUG] Failed to parse JSON for /auth/refresh. Raw text:', rawText);
+        return false;
+      }
       if (response.ok && json.success && json.data?.accessToken) {
         this.accessToken = json.data.accessToken;
         await storage.setItem('access_token', this.accessToken);
@@ -89,12 +104,26 @@ class ApiService {
   // --- Auth Endpoints ---
 
   async login(provider: 'google', code: string, redirectUri?: string): Promise<AuthResponse> {
+    const body = { provider, code, redirectUri };
+    console.log('[API DEBUG] POST /auth/login body:', JSON.stringify(body, null, 2));
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ provider, code, redirectUri }),
+      body: JSON.stringify(body),
     });
-    const json = await response.json();
+    const rawText = await response.text();
+    console.log('[API DEBUG] /auth/login status:', response.status);
+    console.log('[API DEBUG] /auth/login raw response text:', rawText);
+    
+    let json;
+    try {
+      json = JSON.parse(rawText);
+    } catch (e) {
+      console.error('[API DEBUG] Failed to parse JSON. Raw text was:', rawText);
+      throw new Error(`Invalid server response (Status ${response.status})`);
+    }
+
+    console.log('[API DEBUG] /auth/login response:', JSON.stringify(json, null, 2));
     if (!response.ok || !json.success) {
       throw new Error(json.error?.message || 'Login failed');
     }
